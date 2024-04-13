@@ -22,11 +22,11 @@ const main = async () => {
         await getCountries(page, allChars[i], countries)
     }
 
+    const downloadPage = await browser.newPage()
     var resultCountries = []
     for (let country of countries) {
         console.log(`\nFetching documents for ${country.name}`)
         if (country.link === '') continue
-        const downloadPage = await browser.newPage()
         let countryData = await getCountryData(page, downloadPage, country)
         resultCountries.push(countryData)
     }
@@ -108,7 +108,6 @@ const getCountryData = async (page, downloadPage, country) => {
         country.documents[i].dataItems = docItem
     }
     await downloadDocuments(downloadPage, country)
-    await downloadPage.close()
     return country
 }
 
@@ -269,18 +268,6 @@ const getDocumentImageDetails = async (page) => {
         items.push({ name: text, link: imgSrc })
     }
     return items;
-}
-
-const printData = (countries) => {
-    for (let country of countries) {
-        console.log('Name:', country.name)
-        console.log('Link:', country.link)
-        for (let document of country.documents) {
-            console.log('Document Name:', document.name)
-            console.log('Document Link:', document.link)
-            console.log('Data Items:', document.dataItems)
-        }
-    }
 }
 
 const waitForSelector = async (page) => {
