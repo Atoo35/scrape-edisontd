@@ -34,37 +34,6 @@ const main = async () => {
     // // write to json file
     fs.writeFileSync('countries.json', JSON.stringify(Object.values(resultCountries)))
 
-    // iterate over the countries and download the images
-    // for (let country of allCountries) {
-    //     for (let document of country.documents) {
-    //         for (let dataItem of document.dataItems) {
-    //             for (let item of dataItem.items) {
-    //                 if (item.items) {
-    //                     for (let subItem of item.items) {
-    //                         const url = subItem.link
-    //                         let name = subItem.name.replaceAll("/", "-")
-    //                         let replacedDocName = document.name.replaceAll("/", "-")
-    //                         let replacedItemName = item.name.replaceAll("/", "-")
-    //                         const char = country.name.charAt(0)
-    //                         const path = `images/${char}/${country.name}/${replacedDocName}/${replacedItemName}/${name}.jpg`
-    //                         createDirectories(country, replacedDocName, replacedItemName)
-    //                         await downloadFile(page, url, path, name)
-
-    //                     }
-    //                 } else {
-    //                     const url = item.link
-    //                     let name = item.name.replaceAll("/", "-")
-    //                     const char = country.name.charAt(0)
-    //                     let replacedDocName = document.name.replaceAll("/", "-")
-    //                     const path = `images/${char}/${country.name}/${replacedDocName}/${name}.jpg`
-    //                     createDirectories(country, replacedDocName, null)
-    //                     await downloadFile(page, url, path, name)
-    //                 }
-    //             }
-    //         }
-    //     }
-    // }
-
     await browser.close()
 }
 
