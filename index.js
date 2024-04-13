@@ -1,16 +1,17 @@
 const puppeteer = require('puppeteer')
 const fs = require('fs')
 const root = 'https://edisontd.nl'
+const allCountries = require('./countries.json')
 
 const main = async () => {
     const browser = await puppeteer.launch({ headless: true })
     const page = await browser.newPage()
     await page.goto(root)
-    // const allChars = ['https://edisontd.nl/?char=0']
-    const allChars = ['https://edisontd.nl/?char=0', 'https://edisontd.nl/?char=1', 'https://edisontd.nl/?char=2', 'https://edisontd.nl/?char=3', 'https://edisontd.nl/?char=4', 'https://edisontd.nl/?char=5',
-        'https://edisontd.nl/?char=6', 'https://edisontd.nl/?char=7', 'https://edisontd.nl/?char=8', 'https://edisontd.nl/?char=9', 'https://edisontd.nl/?char=10', 'https://edisontd.nl/?char=11', 'https://edisontd.nl/?char=12',
-        'https://edisontd.nl/?char=13', 'https://edisontd.nl/?char=14', 'https://edisontd.nl/?char=15', 'https://edisontd.nl/?char=16', 'https://edisontd.nl/?char=17', 'https://edisontd.nl/?char=18',
-        'https://edisontd.nl/?char=19', 'https://edisontd.nl/?char=20', 'https://edisontd.nl/?char=21', 'https://edisontd.nl/?char=24', 'https://edisontd.nl/?char=25']
+    const allChars = ['https://edisontd.nl/?char=0']
+    // const allChars = ['https://edisontd.nl/?char=0', 'https://edisontd.nl/?char=1', 'https://edisontd.nl/?char=2', 'https://edisontd.nl/?char=3', 'https://edisontd.nl/?char=4', 'https://edisontd.nl/?char=5',
+    //     'https://edisontd.nl/?char=6', 'https://edisontd.nl/?char=7', 'https://edisontd.nl/?char=8', 'https://edisontd.nl/?char=9', 'https://edisontd.nl/?char=10', 'https://edisontd.nl/?char=11', 'https://edisontd.nl/?char=12',
+    //     'https://edisontd.nl/?char=13', 'https://edisontd.nl/?char=14', 'https://edisontd.nl/?char=15', 'https://edisontd.nl/?char=16', 'https://edisontd.nl/?char=17', 'https://edisontd.nl/?char=18',
+    //     'https://edisontd.nl/?char=19', 'https://edisontd.nl/?char=20', 'https://edisontd.nl/?char=21', 'https://edisontd.nl/?char=24', 'https://edisontd.nl/?char=25']
     await page.waitForSelector('table#tbl_dlg')
     // click button with name as submit and text as ok
     await page.click('#tbl_dlg > tbody > tr:nth-child(5) > td:nth-child(3) > button')
@@ -21,19 +22,225 @@ const main = async () => {
         await getCountries(page, allChars[i], countries)
     }
 
+    var resultCountries = []
     for (let country of countries) {
         console.log(`\nFetching documents for ${country.name}`)
         if (country.link === '') continue
-        await getCountryDocuments(page, country)
-        // await getDocumentItems(page, country)
+        const downloadPage = await browser.newPage()
+        let countryData = await getCountryData(page, downloadPage, country)
+        resultCountries.push(countryData)
     }
-    // printData(countries)
 
-    //write to json file
-    fs.writeFileSync('countries.json', JSON.stringify(Object.values(countries)))
+    // // write to json file
+    fs.writeFileSync('countries.json', JSON.stringify(Object.values(resultCountries)))
+
+    // iterate over the countries and download the images
+    // for (let country of allCountries) {
+    //     for (let document of country.documents) {
+    //         for (let dataItem of document.dataItems) {
+    //             for (let item of dataItem.items) {
+    //                 if (item.items) {
+    //                     for (let subItem of item.items) {
+    //                         const url = subItem.link
+    //                         let name = subItem.name.replaceAll("/", "-")
+    //                         let replacedDocName = document.name.replaceAll("/", "-")
+    //                         let replacedItemName = item.name.replaceAll("/", "-")
+    //                         const char = country.name.charAt(0)
+    //                         const path = `images/${char}/${country.name}/${replacedDocName}/${replacedItemName}/${name}.jpg`
+    //                         createDirectories(country, replacedDocName, replacedItemName)
+    //                         await downloadFile(page, url, path, name)
+
+    //                     }
+    //                 } else {
+    //                     const url = item.link
+    //                     let name = item.name.replaceAll("/", "-")
+    //                     const char = country.name.charAt(0)
+    //                     let replacedDocName = document.name.replaceAll("/", "-")
+    //                     const path = `images/${char}/${country.name}/${replacedDocName}/${name}.jpg`
+    //                     createDirectories(country, replacedDocName, null)
+    //                     await downloadFile(page, url, path, name)
+    //                 }
+    //             }
+    //         }
+    //     }
+    // }
 
     await browser.close()
 }
+
+const downloadDocuments = async (page, countryData) => {
+    for (let document of countryData.documents) {
+        for (let dataItem of document.dataItems) {
+            for (let item of dataItem.items) {
+                if (item.items) {
+                    for (let subItem of item.items) {
+                        const url = subItem.link
+                        let name = subItem.name.replaceAll("/", "-")
+                        let replacedDocName = document.name.replaceAll("/", "-")
+                        let replacedItemName = item.name.replaceAll("/", "-")
+                        const char = countryData.name.charAt(0)
+                        const path = `images/${char}/${countryData.name}/${replacedDocName}/${replacedItemName}/${name}.jpg`
+                        createDirectories(countryData, replacedDocName, replacedItemName)
+                        await downloadFile(page, url, path, name)
+
+                    }
+                } else {
+                    const url = item.link
+                    let name = item.name.replaceAll("/", "-")
+                    const char = countryData.name.charAt(0)
+                    let replacedDocName = document.name.replaceAll("/", "-")
+                    const path = `images/${char}/${countryData.name}/${replacedDocName}/${name}.jpg`
+                    createDirectories(countryData, replacedDocName, null)
+                    await downloadFile(page, url, path, name)
+                }
+            }
+        }
+    }
+}
+
+const downloadFile = async (page, url, path, name) => {
+    const viewSource = await page.goto(url)
+    // await page.waitForNetworkIdle()
+    fs.writeFile(path, await
+        viewSource.buffer(), function (err) {
+            if (err) {
+                return console.log(err)
+            }
+            console.log(`The file ${name}.jpg was saved!`)
+        }
+    )
+}
+
+const createDirectories = (country, docName, itemName) => {
+    const char = country.name.charAt(0)
+    if (!fs.existsSync('images')) {
+        fs.mkdirSync('images')
+    }
+    if (!fs.existsSync(`images/${char}`)) {
+        fs.mkdirSync(`images/${char}`)
+    }
+
+    if (!fs.existsSync(`images/${char}/${country.name}`)) {
+        fs.mkdirSync(`images/${char}/${country.name}`)
+    }
+    if (!fs.existsSync(`images/${char}/${country.name}/${docName}`)) {
+        fs.mkdirSync(`images/${char}/${country.name}/${docName}`)
+    }
+    if (itemName) {
+        if (!fs.existsSync(`images/${char}/${country.name}/${docName}/${itemName}`)) {
+            fs.mkdirSync(`images/${char}/${country.name}/${docName}/${itemName}`)
+        }
+    }
+}
+
+const getCountryData = async (page, downloadPage, country) => {
+    const docs = await getCountryDocuments(page, country)
+    country.documents = docs
+    for (let i in docs) {
+        let docItem = await getDocumentItems(page, country, docs[i])
+        country.documents[i].dataItems = docItem
+    }
+    await downloadDocuments(downloadPage, country)
+    await downloadPage.close()
+    return country
+}
+
+
+const getCountries = async (page, char, countries) => {
+    await page.goto(char)
+    // get the frame frame[src="?frame=list"]
+    const frame = await page.frames().find(f => f.url().includes('?frame=list'))
+    // get elements from the table tbl_lbl_ltr
+    const table = await frame.$('table#tbl_lbl_ltr')
+    const rows = await table.$$('tr')
+    for (let row of rows) {
+        const cell = await row.$('td')
+        const text = await cell.evaluate(node => node.innerText)
+        if (text === '') continue
+        const anchor = await cell.$('a')
+        let href = ''
+        if (anchor) {
+            href = await anchor.evaluate(node => node.href)
+        }
+        countries.push({ name: text, link: href, documents: [] })
+    }
+}
+
+
+const getCountryDocuments = async (page, country) => {
+    var documents = []
+    await page.goto(country.link).catch(e => console.log(e, country.link))
+    await waitForSelector(page)
+    const frame = await page.frames().find(f => f.url().includes('?frame=list'))
+    const table = await frame.$('table#tbl_lbl_ltr')
+    const rows = await table.$$('tr')
+    for (let row of rows) {
+        const cell = await row.$('td')
+        const text = await cell.evaluate(node => node.innerText)
+        if (text === '') continue
+        const anchor = await cell.$('a')
+        let href = ''
+        if (anchor) {
+            href = await anchor.evaluate(node => node.href)
+        }
+        documents.push({ name: text, link: href })
+    }
+    return documents
+}
+
+const getDocumentItems = async (page, country, document) => {
+    if (country.documents.length > 0) {
+        await page.goto(country.link)
+        await waitForSelector(page)
+        let dataItems = []
+        await page.goto(document.link)
+        await waitForSelector(page)
+
+        const frame = await page.frames().find(f => f.url().includes('?frame=list'))
+        const anchors = await frame.$$('a#a_thb')
+        for (let anchor of anchors) {
+            const href = await anchor.evaluate(node => node.href)
+            dataItems.push({ link: href })
+        }
+
+        console.log('fetching data items for', document.name)
+        for (let dataItem of dataItems) {
+            await getDocumentDetails(page, dataItem)
+        }
+
+        return dataItems
+    }
+}
+
+// const getDocumentItems = async (page, country) => {
+//     if (country.documents.length > 0) {
+//         await page.goto(country.link)
+//         await waitForSelector(page)
+//         for (let i in country.documents) {
+//             const document = country.documents[i]
+//             dataItems = []
+//             await page.goto(document.link)
+//             await waitForSelector(page)
+
+//             const frame = await page.frames().find(f => f.url().includes('?frame=list'))
+//             const anchors = await frame.$$('a#a_thb')
+//             for (let anchor of anchors) {
+//                 const href = await anchor.evaluate(node => node.href)
+//                 dataItems.push({ link: href })
+//             }
+//             country.documents[i].dataItems = dataItems
+//         }
+
+//         for (let document of country.documents) {
+//             console.log('fetching data items for', document.name)
+//             await page.goto(document.link)
+//             await waitForSelector(page)
+//             for (let dataItem of document.dataItems) {
+//                 await getDocumentDetails(page, dataItem)
+//             }
+//         }
+//     }
+// }
 
 const getDocumentDetails = async (page, dataItem) => {
     await page.goto(dataItem.link)
@@ -95,78 +302,6 @@ const getDocumentImageDetails = async (page) => {
         items.push({ name: text, link: imgSrc })
     }
     return items;
-}
-
-const getCountries = async (page, char, countries) => {
-    await page.goto(char)
-    // get the frame frame[src="?frame=list"]
-    const frame = await page.frames().find(f => f.url().includes('?frame=list'))
-    // get elements from the table tbl_lbl_ltr
-    const table = await frame.$('table#tbl_lbl_ltr')
-    const rows = await table.$$('tr')
-    for (let row of rows) {
-        const cell = await row.$('td')
-        const text = await cell.evaluate(node => node.innerText)
-        if (text === '') continue
-        const anchor = await cell.$('a')
-        let href = ''
-        if (anchor) {
-            href = await anchor.evaluate(node => node.href)
-        }
-        countries.push({ name: text, link: href, documents: [] })
-    }
-}
-
-
-const getCountryDocuments = async (page, country) => {
-    var documents = []
-    await page.goto(country.link).catch(e => console.log(e, country.link))
-    await waitForSelector(page)
-    const frame = await page.frames().find(f => f.url().includes('?frame=list'))
-    const table = await frame.$('table#tbl_lbl_ltr')
-    const rows = await table.$$('tr')
-    for (let row of rows) {
-        const cell = await row.$('td')
-        const text = await cell.evaluate(node => node.innerText)
-        if (text === '') continue
-        const anchor = await cell.$('a')
-        let href = ''
-        if (anchor) {
-            href = await anchor.evaluate(node => node.href)
-        }
-        country.documents.push({ name: text, link: href })
-    }
-    await getDocumentItems(page, country)
-}
-
-const getDocumentItems = async (page, country) => {
-    if (country.documents.length > 0) {
-        await page.goto(country.link)
-        await waitForSelector(page)
-        for (let i in country.documents) {
-            const document = country.documents[i]
-            dataItems = []
-            await page.goto(document.link)
-            await waitForSelector(page)
-
-            const frame = await page.frames().find(f => f.url().includes('?frame=list'))
-            const anchors = await frame.$$('a#a_thb')
-            for (let anchor of anchors) {
-                const href = await anchor.evaluate(node => node.href)
-                dataItems.push({ link: href })
-            }
-            country.documents[i].dataItems = dataItems
-        }
-
-        for (let document of country.documents) {
-            console.log('fetching data items for', document.name)
-            await page.goto(document.link)
-            await waitForSelector(page)
-            for (let dataItem of document.dataItems) {
-                await getDocumentDetails(page, dataItem)
-            }
-        }
-    }
 }
 
 const printData = (countries) => {
