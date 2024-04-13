@@ -41,24 +41,22 @@ const downloadDocuments = async (page, countryData) => {
     for (let document of countryData.documents) {
         for (let dataItem of document.dataItems) {
             for (let item of dataItem.items) {
+                const char = countryData.name.charAt(0)
+                const replacedDocName = document.name.replaceAll("/", "-")
+                const rootPath = `images/${char}/${countryData.name}/${replacedDocName}`
                 if (item.items) {
                     for (let subItem of item.items) {
                         const url = subItem.link
                         let name = subItem.name.replaceAll("/", "-")
-                        let replacedDocName = document.name.replaceAll("/", "-")
                         let replacedItemName = item.name.replaceAll("/", "-")
-                        const char = countryData.name.charAt(0)
-                        const path = `images/${char}/${countryData.name}/${replacedDocName}/${replacedItemName}/${name}.jpg`
+                        const path = `${rootPath}/${replacedItemName}/${name}.jpg`
                         createDirectories(countryData, replacedDocName, replacedItemName)
                         await downloadFile(page, url, path, name)
-
                     }
                 } else {
                     const url = item.link
                     let name = item.name.replaceAll("/", "-")
-                    const char = countryData.name.charAt(0)
-                    let replacedDocName = document.name.replaceAll("/", "-")
-                    const path = `images/${char}/${countryData.name}/${replacedDocName}/${name}.jpg`
+                    const path = `${rootPath}/${name}.jpg`
                     createDirectories(countryData, replacedDocName, null)
                     await downloadFile(page, url, path, name)
                 }
