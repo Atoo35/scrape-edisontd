@@ -4,7 +4,7 @@ const root = 'https://edisontd.nl'
 const allCountries = require('./countries.json')
 
 const main = async () => {
-    const browser = await puppeteer.launch({ headless: true })
+    const browser = await puppeteer.launch({ headless: false })
     const page = await browser.newPage()
     await page.goto(root)
     const allChars = ['https://edisontd.nl/?char=0']
@@ -19,11 +19,12 @@ const main = async () => {
 
     var countries = []
     for (let i in allChars) {
-        await getCountries(page, allChars[i], countries)
+        let allCountries = await getCountries(page, allChars[i])
+        countries.push(...allCountries)
     }
 
-    const downloadPage = await browser.newPage()
     var resultCountries = []
+    const downloadPage = await browser.newPage()
     for (let country of countries) {
         console.log(`\nFetching documents for ${country.name}`)
         if (country.link === '') continue
@@ -112,8 +113,10 @@ const getCountryData = async (page, downloadPage, country) => {
 }
 
 
-const getCountries = async (page, char, countries) => {
+const getCountries = async (page, char) => {
+    var countries = []
     await page.goto(char)
+    await waitForSelector(page)
     // get the frame frame[src="?frame=list"]
     const frame = await page.frames().find(f => f.url().includes('?frame=list'))
     // get elements from the table tbl_lbl_ltr
@@ -130,6 +133,7 @@ const getCountries = async (page, char, countries) => {
         }
         countries.push({ name: text, link: href, documents: [] })
     }
+    return countries
 }
 
 
@@ -171,7 +175,8 @@ const getDocumentItems = async (page, country, document) => {
 
         console.log('fetching data items for', document.name)
         for (let dataItem of dataItems) {
-            await getDocumentDetails(page, dataItem)
+            let items = await getDocumentDetails(page, dataItem)
+            dataItem.items = items
         }
 
         return dataItems
@@ -234,10 +239,12 @@ const getDocumentDetails = async (page, dataItem) => {
                 const items = await getDocumentImageDetails(page)
                 item.items = items
             }
-            dataItem.items = items
+            return items
+            // dataItem.items = items
         } else {
             const items = await getDocumentImageDetails(page)
-            dataItem.items = items
+            return items
+            // dataItem.items = items
         }
     }
 }
