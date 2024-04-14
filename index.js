@@ -38,29 +38,27 @@ const main = async () => {
     await browser.close()
 }
 
-const downloadDocuments = async (page, countryData) => {
-    for (let document of countryData.documents) {
-        for (let dataItem of document.dataItems) {
-            for (let item of dataItem.items) {
-                const char = countryData.name.charAt(0)
-                const replacedDocName = document.name.replaceAll("/", "-")
-                const rootPath = `images/${char}/${countryData.name}/${replacedDocName}`
-                if (item.items) {
-                    for (let subItem of item.items) {
-                        const url = subItem.link
-                        let name = subItem.name.replaceAll("/", "-")
-                        let replacedItemName = item.name.replaceAll("/", "-")
-                        const path = `${rootPath}/${replacedItemName}/${name}.jpg`
-                        createDirectories(countryData, replacedDocName, replacedItemName)
-                        await downloadFile(page, url, path, name)
-                    }
-                } else {
-                    const url = item.link
-                    let name = item.name.replaceAll("/", "-")
-                    const path = `${rootPath}/${name}.jpg`
-                    createDirectories(countryData, replacedDocName, null)
+const downloadDocuments = async (page, document, countryName) => {
+    for (let dataItem of document.dataItems) {
+        for (let item of dataItem.items) {
+            const char = countryName.charAt(0)
+            const replacedDocName = document.name.replaceAll("/", "-")
+            const rootPath = `images/${char}/${countryName}/${replacedDocName}`
+            if (item.items) {
+                for (let subItem of item.items) {
+                    const url = subItem.link
+                    let name = subItem.name.replaceAll("/", "-")
+                    let replacedItemName = item.name.replaceAll("/", "-")
+                    const path = `${rootPath}/${replacedItemName}/${name}.jpg`
+                    createDirectories(countryName, replacedDocName, replacedItemName)
                     await downloadFile(page, url, path, name)
                 }
+            } else {
+                const url = item.link
+                let name = item.name.replaceAll("/", "-")
+                const path = `${rootPath}/${name}.jpg`
+                createDirectories(countryName, replacedDocName, null)
+                await downloadFile(page, url, path, name)
             }
         }
     }
@@ -79,8 +77,8 @@ const downloadFile = async (page, url, path, name) => {
     )
 }
 
-const createDirectories = (country, docName, itemName) => {
-    const char = country.name.charAt(0)
+const createDirectories = (countryName, docName, itemName) => {
+    const char = countryName.charAt(0)
     if (!fs.existsSync('images')) {
         fs.mkdirSync('images')
     }
@@ -88,15 +86,15 @@ const createDirectories = (country, docName, itemName) => {
         fs.mkdirSync(`images/${char}`)
     }
 
-    if (!fs.existsSync(`images/${char}/${country.name}`)) {
-        fs.mkdirSync(`images/${char}/${country.name}`)
+    if (!fs.existsSync(`images/${char}/${countryName}`)) {
+        fs.mkdirSync(`images/${char}/${countryName}`)
     }
-    if (!fs.existsSync(`images/${char}/${country.name}/${docName}`)) {
-        fs.mkdirSync(`images/${char}/${country.name}/${docName}`)
+    if (!fs.existsSync(`images/${char}/${countryName}/${docName}`)) {
+        fs.mkdirSync(`images/${char}/${countryName}/${docName}`)
     }
     if (itemName) {
-        if (!fs.existsSync(`images/${char}/${country.name}/${docName}/${itemName}`)) {
-            fs.mkdirSync(`images/${char}/${country.name}/${docName}/${itemName}`)
+        if (!fs.existsSync(`images/${char}/${countryName}/${docName}/${itemName}`)) {
+            fs.mkdirSync(`images/${char}/${countryName}/${docName}/${itemName}`)
         }
     }
 }
@@ -107,8 +105,8 @@ const getCountryData = async (page, downloadPage, country) => {
     for (let i in docs) {
         let docItem = await getDocumentItems(page, country, docs[i])
         country.documents[i].dataItems = docItem
+        await downloadDocuments(downloadPage, country.documents[i], country.name)
     }
-    await downloadDocuments(downloadPage, country)
     return country
 }
 
@@ -173,7 +171,7 @@ const getDocumentItems = async (page, country, document) => {
             dataItems.push({ link: href })
         }
 
-        console.log('fetching data items for', document.name)
+        console.log('\nFetching data items for', document.name)
         for (let dataItem of dataItems) {
             let items = await getDocumentDetails(page, dataItem)
             dataItem.items = items
