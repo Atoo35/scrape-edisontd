@@ -4,7 +4,7 @@ const root = 'https://edisontd.nl'
 const allCountries = require('./countries.json')
 
 const main = async () => {
-    const browser = await puppeteer.launch({ headless: false })
+    const browser = await puppeteer.launch({ headless: true })
     const page = await browser.newPage()
     await page.goto(root)
     const allChars = ['https://edisontd.nl/?char=0']
@@ -50,14 +50,15 @@ const downloadDocuments = async (page, document, countryName) => {
                     let name = subItem.name.replaceAll("/", "-")
                     let replacedItemName = item.name.replaceAll("/", "-")
                     const path = `${rootPath}/${replacedItemName}/${name}.jpg`
-                    createDirectories(countryName, replacedDocName, replacedItemName)
+                    createDirectories(countryName, replacedDocName, null, replacedItemName)
                     await downloadFile(page, url, path, name)
                 }
             } else {
                 const url = item.link
+                const itemTitle = item.title.replaceAll("/", "-")
                 let name = item.name.replaceAll("/", "-")
-                const path = `${rootPath}/${name}.jpg`
-                createDirectories(countryName, replacedDocName, null)
+                const path = `${rootPath}/${itemTitle}/${name}.jpg`
+                createDirectories(countryName, replacedDocName, itemTitle, null)
                 await downloadFile(page, url, path, name)
             }
         }
@@ -77,7 +78,7 @@ const downloadFile = async (page, url, path, name) => {
     )
 }
 
-const createDirectories = (countryName, docName, itemName) => {
+const createDirectories = (countryName, docName, itemTitle, itemName) => {
     const char = countryName.charAt(0)
     if (!fs.existsSync('images')) {
         fs.mkdirSync('images')
@@ -91,6 +92,11 @@ const createDirectories = (countryName, docName, itemName) => {
     }
     if (!fs.existsSync(`images/${char}/${countryName}/${docName}`)) {
         fs.mkdirSync(`images/${char}/${countryName}/${docName}`)
+    }
+    if (itemTitle) {
+        if (!fs.existsSync(`images/${char}/${countryName}/${docName}/${itemTitle}`)) {
+            fs.mkdirSync(`images/${char}/${countryName}/${docName}/${itemTitle}`)
+        }
     }
     if (itemName) {
         if (!fs.existsSync(`images/${char}/${countryName}/${docName}/${itemName}`)) {
@@ -163,7 +169,6 @@ const getDocumentItems = async (page, country, document) => {
         let dataItems = []
         await page.goto(document.link)
         await waitForSelector(page)
-
         const frame = await page.frames().find(f => f.url().includes('?frame=list'))
         const anchors = await frame.$$('a#a_thb')
         for (let anchor of anchors) {
@@ -180,36 +185,6 @@ const getDocumentItems = async (page, country, document) => {
         return dataItems
     }
 }
-
-// const getDocumentItems = async (page, country) => {
-//     if (country.documents.length > 0) {
-//         await page.goto(country.link)
-//         await waitForSelector(page)
-//         for (let i in country.documents) {
-//             const document = country.documents[i]
-//             dataItems = []
-//             await page.goto(document.link)
-//             await waitForSelector(page)
-
-//             const frame = await page.frames().find(f => f.url().includes('?frame=list'))
-//             const anchors = await frame.$$('a#a_thb')
-//             for (let anchor of anchors) {
-//                 const href = await anchor.evaluate(node => node.href)
-//                 dataItems.push({ link: href })
-//             }
-//             country.documents[i].dataItems = dataItems
-//         }
-
-//         for (let document of country.documents) {
-//             console.log('fetching data items for', document.name)
-//             await page.goto(document.link)
-//             await waitForSelector(page)
-//             for (let dataItem of document.dataItems) {
-//                 await getDocumentDetails(page, dataItem)
-//             }
-//         }
-//     }
-// }
 
 const getDocumentDetails = async (page, dataItem) => {
     await page.goto(dataItem.link)
@@ -255,6 +230,9 @@ const getDocumentImageDetails = async (page) => {
     const row = await table.$('tr')
     const cells = await row.$$('td#td_thb')
     var items = []
+    const mainFrame = await page.frames().find(f => f.url().includes('?frame=main'))
+    const titleBox = await mainFrame.$('#td_ttl')
+    const titleText = await titleBox.evaluate(node => node.innerText)
     for (let cell of cells) {
         const table = await cell.$('table')
         // this table contains 2 rows, get td with id td_thb_img to get image link and td with id td_thb_ttl to get tex
@@ -270,7 +248,7 @@ const getDocumentImageDetails = async (page) => {
         imgSrc = imgSrc.replace('doc_thb', 'doc_ima')
         const title = await table.$('#td_thb_ttl')
         const text = await title.evaluate(node => node.innerText)
-        items.push({ name: text, link: imgSrc })
+        items.push({ name: text, link: imgSrc, title: titleText })
     }
     return items;
 }
